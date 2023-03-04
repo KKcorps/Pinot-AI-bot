@@ -9,6 +9,7 @@ import openai_helper
 
 import sys
 
+nltk.download('punkt')
 nltk.download('stopwords')
 
 ## return list of search terms : list[str]
