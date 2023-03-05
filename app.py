@@ -1,5 +1,5 @@
 import sys
-import process_query
+from utils.process_query import generate_response
 import requests
 
 from flask import Flask, request, Response
@@ -10,7 +10,7 @@ import os
 
 app = Flask(__name__)
 
-WEBHOOK_URL = os.environ["SLACK_WEBHOOL_URL"]
+WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
 headers = {'Content-type': 'application/json'}
 
 def format_slack_text(text):
@@ -18,12 +18,13 @@ def format_slack_text(text):
     return "```" + text + "```"
 
 def append_question(text, query):
-    return f"*{query}*\n{text}"
+    return f"*{query}* {text}"
 
 def handle_slack(query):
-    answer = process_query.generate_response(query)
+    answer = generate_response(query)
     slack_response = {"text": append_question(format_slack_text(answer), query)}
     requests.post(WEBHOOK_URL, json=slack_response, headers=headers)
+
 
 @app.route('/')
 def home():
@@ -44,10 +45,29 @@ def ask_ai_command():
 
 def handle_slack_command_lamda(event, context):
     query = event.get("text")
-    if query is None:
+    if query is None or len(query) == 0:
         print("No query provided!")
-        return "No query provided!"
+        response = {
+            "statusCode": 400,
+            "headers": {
+                "Content-Type": "application/json"
+            },
+            "body": json.dumps({
+                "data ": "No query provied"
+            })
+        }
+        return response
     handle_slack(query)
+    response = {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({
+            "data ": f"Query Processed: *{query}*. Check slack for response!"
+        })
+    }
+    return response
 
 
 
@@ -57,7 +77,3 @@ def run():
 def keep_alive():
     t = Thread(target=run)
     t.start()
-
-
-if __name__ == "__main__":
-    keep_alive()

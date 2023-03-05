@@ -1,4 +1,4 @@
-import process_query
+from utils.process_query import generate_response
 import logging
 import streamlit as st
 import streamlit.components.v1 as components
@@ -24,7 +24,7 @@ def generate_text():
         st.session_state.n_requests = 1
         return
 
-    result = process_query.generate_response(query)
+    result = generate_response(query)
 
     # st.session_state.response = result.response
     st.session_state.answer = result

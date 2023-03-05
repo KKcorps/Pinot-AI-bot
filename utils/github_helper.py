@@ -29,10 +29,10 @@ def get_doc_content(file_url):
 
 ## return list of urls:  ['https://file1.md']
 def search_configs_in_repo(query_items):
-    doc_url_list = {}
-    file_url_list = {}
+    doc_url_list = set()
+    file_url_list = set()
     for query in query_items:
-        url = f"https://api.github.com/search/code?q={query}+repo:{code_repo}+extension:json"
+        url = f"https://api.github.com/search/code?q={query}+repo:{code_repo}+extension:json+extension:yaml+extension:properties"
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             results = response.json()["items"]
@@ -62,9 +62,11 @@ def search_configs_in_repo(query_items):
 
 ## return list of urls:  ['https://file1.md']
 def search_github_documentation(query_items):
-    doc_url_list = {}
-    file_url_list = {}
+    doc_url_list = set()
+    file_url_list = set()
     for query in query_items:
+        if len(doc_url_list) >= MAX_URL_COUNT:
+            break
         url = f"https://api.github.com/search/code?q={query}+repo:{documention_repo}"
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
@@ -84,7 +86,7 @@ def search_github_documentation(query_items):
                     if download_url not in doc_url_list:
                         print(f"{filename}: {download_url}")
                         doc_url_list.add(download_url)
-                        if len(doc_url_list) > MAX_URL_COUNT:
+                        if len(doc_url_list) >= MAX_URL_COUNT:
                             break
                 else:
                     print(f"Error searching File URL {file_url} GitHub: {response.status_code}")
