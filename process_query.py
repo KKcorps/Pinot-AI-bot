@@ -27,7 +27,7 @@ def get_search_terms(query):
     
     # print("FILTERED TOKENS:\n")
     # print(filtered_tokens)
-    return filtered_tokens
+    return list(set(filtered_tokens))
 
 
 def generate_response(query):
@@ -35,6 +35,9 @@ def generate_response(query):
 
     search_terms = get_search_terms(query)
     documentation_urls = github_helper.search_github_documentation([query])
+    if len(documentation_urls) == 0:
+        documentation_urls = github_helper.search_github_documentation(','.join(search_terms))
+    
     if len(documentation_urls) == 0:
         print("Sorry couldn't find anything! Give it another try with a modified question!")
         return "Sorry couldn't find anything! Give it another try with a modified question!"

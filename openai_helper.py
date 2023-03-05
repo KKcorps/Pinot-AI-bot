@@ -8,7 +8,11 @@ CHUNK_LENGTH = 1024
 
 def generate_response(documents, user_question):
     # prompt = f"Can you help me find the relevant information and code samples in this documentation to answer this user question? \n\n User question: {user_question}\n\nDocuments:\n\n{documents[:MAX_DOC_LENGTH]}\n\nAnswer:"
-    prompt = f"Can you help me find the relevant information, code samples as well as from the documentation to answer this user question? \n\n User question: {user_question}.  The response should be of the format \n\n `Answer:` followed by user answer \n\n `Configuration`: followed by JSON or YAML configuration example \n\n `Code Sample`: followed by the code sample in JAVA langauge \n\n\n. Use configuration similar to the one in the documentation, also in same format. \n\n The documentation to answer these questions is presentation in next few chat messages"
+    prompt_with_code = f"Can you help me find the relevant information, code samples as well as from the documentation to answer this user question? \n\n User question: {user_question}.  The response should be of the format \n\n `Answer:` followed by user answer \n\n `Configuration`: followed by JSON or YAML configuration example \n\n `Code Sample`: followed by the code sample in JAVA langauge \n\n\n. Use configuration similar to the one in the documentation, also in same format. \n\n The documentation to answer these questions is presentation in next few chat messages"
+
+    prompt_without_code = f"Can you help me find the relevant information and configuration from the documentation to answer this user question? \n\n User question: {user_question}.  The response should be of the format \n\n `Answer:` followed by user answer \n\n `Configuration`: followed by JSON or YAML configuration example. \n\n\n. Use configuration similar to the one in the documentation. Do not change the config format. \n\n The documentation to answer these questions is presentation in next few chat messages"
+
+    prompt = prompt_without_code
     # model_engine = "davinci-codex" # use the codex model for generating code
     # completions = openai.Completion.create(engine=model_engine, prompt=prompt, max_tokens=1024)
     # code_answer = completions.choices[0].text.strip()
@@ -39,7 +43,12 @@ def generate_response(documents, user_question):
 
     completions= openai.ChatCompletion.create(
         model=model_engine,
-        messages=messages)
+        messages=messages,
+        temperature=0.2,
+        max_tokens=1024,
+        frequency_penalty=1.0,
+        presence_penalty=1.0
+        )
 
     natural_language_answer = completions.choices[0]['message']['content'].strip()
     return natural_language_answer

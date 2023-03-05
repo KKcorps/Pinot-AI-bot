@@ -6,7 +6,9 @@ import os
 
 # Replace these values with your own
 query = "upsert"
-repo = "pinot-contrib/pinot-docs"
+documention_repo = "pinot-contrib/pinot-docs"
+code_repo = "apache/pinot"
+
 token = os.environ["GITHUB_API_KEY"]
 
 
@@ -26,10 +28,11 @@ def get_doc_content(file_url):
 
 
 ## return list of urls:  ['https://file1.md']
-def search_github_documentation(query_items):
-    doc_url_list = []
+def search_configs_in_repo(query_items):
+    doc_url_list = {}
+    file_url_list = {}
     for query in query_items:
-        url = f"https://api.github.com/search/code?q={query}+repo:{repo}"
+        url = f"https://api.github.com/search/code?q={query}+repo:{code_repo}+extension:json"
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             results = response.json()["items"]
@@ -39,16 +42,53 @@ def search_github_documentation(query_items):
                 html_url = result["html_url"]
                 if not html_url.endswith(".md"):
                     continue
+                if file_url in file_url_list:
+                    continue
+                file_url_list.add(file_url)
                 file_url_response = requests.get(file_url)
                 if file_url_response.status_code == 200:
                     download_url = file_url_response.json()["download_url"]
-                    print(f"{filename}: {download_url}")
-                    doc_url_list.append(download_url)
-                    if len(doc_url_list) > MAX_URL_COUNT:
-                        break
+                    if download_url not in doc_url_list:
+                        print(f"{filename}: {download_url}")
+                        doc_url_list.add(download_url)
+                        if len(doc_url_list) > MAX_URL_COUNT:
+                            break
                 else:
                     print(f"Error searching File URL {file_url} GitHub: {response.status_code}")
 
         else:
             print(f"Error searching GitHub: {response.status_code}")
-    return doc_url_list
+    return list(doc_url_list)
+
+## return list of urls:  ['https://file1.md']
+def search_github_documentation(query_items):
+    doc_url_list = {}
+    file_url_list = {}
+    for query in query_items:
+        url = f"https://api.github.com/search/code?q={query}+repo:{documention_repo}"
+        response = requests.get(url, headers=headers)
+        if response.status_code == 200:
+            results = response.json()["items"]
+            for result in results:
+                filename = result["name"]
+                file_url = result["url"]
+                html_url = result["html_url"]
+                if not html_url.endswith(".md"):
+                    continue
+                if file_url in file_url_list:
+                    continue
+                file_url_list.add(file_url)
+                file_url_response = requests.get(file_url)
+                if file_url_response.status_code == 200:
+                    download_url = file_url_response.json()["download_url"]
+                    if download_url not in doc_url_list:
+                        print(f"{filename}: {download_url}")
+                        doc_url_list.add(download_url)
+                        if len(doc_url_list) > MAX_URL_COUNT:
+                            break
+                else:
+                    print(f"Error searching File URL {file_url} GitHub: {response.status_code}")
+
+        else:
+            print(f"Error searching GitHub: {response.status_code}")
+    return list(doc_url_list)

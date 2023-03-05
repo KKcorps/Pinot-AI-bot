@@ -5,12 +5,12 @@ import requests
 from flask import Flask, request, Response
 from threading import Thread
 import re
+import os
 # from keep_alive import keep_alive
 
 app = Flask(__name__)
 
-
-WEBHOOK_URL = "https://hooks.slack.com/services/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"
+WEBHOOK_URL = os.environ["SLACK_WEBHOOL_URL"]
 headers = {'Content-type': 'application/json'}
 
 def format_slack_text(text):
