@@ -34,11 +34,11 @@ def home():
 def ask_ai_command():
     data = request.form
     query = data.get("text")
-    if query is None:
+    if query is None or len(query) == 0:
         print("No query provided!")
         slack_response = {"text": format_slack_text("No query provided")}
         requests.post(WEBHOOK_URL, json=slack_response, headers=headers)
-        return Response(), 400
+        return Response("No query provied"), 400
     #TODO: do not create a new thread for every request obviously   
     Thread(target = handle_slack, args=[query]).start()
     return Response(f"Queued: *{query}*. We now let AI cook!"), 200
@@ -72,8 +72,18 @@ def handle_slack_command_lamda(event, context):
 
 
 def run():
-  app.run(host='0.0.0.0',port=9003)
+  app.run(host='0.0.0.0',port=8080)
+
+def serve():
+    from waitress import serve
+    serve(app, host="0.0.0.0", port=8080)
 
 def keep_alive():
     t = Thread(target=run)
     t.start()
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        serve()
+    else:
+        keep_alive()
