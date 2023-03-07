@@ -1,9 +1,12 @@
 import os
 from slack_sdk import WebClient
 from slack_sdk.errors import SlackApiError
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
+token = os.environ["SLACK_API_KEY"]
 # Initialize a Slack API client with a user token
-client = WebClient(token=os.environ["SLACK_API_KEY"])
+client = WebClient(token=token)
 
 MAX_MESSAGES_COUNT = 10
 

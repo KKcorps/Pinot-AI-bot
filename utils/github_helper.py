@@ -4,13 +4,15 @@ from markdown import markdown
 import re
 import os
 
+from dotenv import load_dotenv
+load_dotenv(override=True)
+
 # Replace these values with your own
 query = "upsert"
 documention_repo = "pinot-contrib/pinot-docs"
 code_repo = "apache/pinot"
 
 token = os.environ["GITHUB_API_KEY"]
-
 
 headers = {"Authorization": f"Bearer {token}"}
 MAX_URL_COUNT = 1

@@ -1,22 +1,27 @@
-# import nltk
+from nltk import word_tokenize, pos_tag
 from nltk.corpus import stopwords
 import string
 import argparse
 
 from utils.github_helper import search_github_documentation, get_doc_content
-from utils.openai_helper import generate_response
+from utils.openai_helper import ask_gpt
 
 import sys
-
+from dotenv import load_dotenv
+load_dotenv(override=True)
 
 ## return list of search terms : list[str]
 def get_search_terms(query):
     # Tokenize the question
-    tokens = nltk.word_tokenize(query)
+    tokens = word_tokenize(query)
+    # is_noun = lambda pos: pos[:2] == 'NN'
 
+    tagged_tokens = pos_tag(tokens)
+    search_tokens = [word for word, pos in tagged_tokens if pos in ['NN', 'NNS', 'NNP', 'JJ']]
+    # nouns = [word for (word, pos) in pos_tag(tokens) if is_noun(pos)] 
     # Remove stop words
     stop_words = set(stopwords.words('english'))
-    filtered_tokens = [word for word in tokens if not word.lower() in stop_words]
+    filtered_tokens = [word for word in search_tokens if not word.lower() in stop_words]
 
     # Remove punctuations
     punctuations = set(string.punctuation)
@@ -40,7 +45,7 @@ def generate_response(query):
         return "Sorry couldn't find anything! Give it another try with a modified question!"
     for url in documentation_urls:
         doc_text = get_doc_content(url)
-        ai_output = generate_response(doc_text, query)
+        ai_output = ask_gpt(doc_text, query)
         print(f"Here's what Pinot AI bot thinks you should do:\n {ai_output}")
         print("Hope, you're satisfied trin trin")
         return ai_output
@@ -62,6 +67,7 @@ if __name__ == "__main__":
         sys.exit(-1)
     
     generate_response(query)
+    # print(get_search_terms(query))
 
     
 

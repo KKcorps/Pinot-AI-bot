@@ -6,15 +6,28 @@ from flask import Flask, request, Response
 from threading import Thread
 import re
 import os
+import json
+import base64
+from requests_toolbelt.multipart import decoder
+from urllib.parse import parse_qs
 # from keep_alive import keep_alive
+import boto3
+from dotenv import load_dotenv
+
+load_dotenv(override=True) 
 
 app = Flask(__name__)
 
 WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
+MY_SNS_TOPIC_ARN = os.environ["SNS_TOPIC_NAME"]
+SNS_TOPIC_REGION = os.environ["SNS_TOPIC_REGION"]
+
 headers = {'Content-type': 'application/json'}
+sns_client = boto3.client('sns', region_name=SNS_TOPIC_REGION)
 
 def format_slack_text(text):
     text = re.sub(r'\n+', '\n', text) 
+    text = text.replace("```", " ")
     return "```" + text + "```"
 
 def append_question(text, query):
@@ -43,8 +56,47 @@ def ask_ai_command():
     Thread(target = handle_slack, args=[query]).start()
     return Response(f"Queued: *{query}*. We now let AI cook!"), 200
 
+
+def handle_sns_command_lamda(event, context):
+    message = json.loads(event['Records'][0]['Sns']['Message'])
+    query = message['text']
+    handle_slack(query)
+    response = {
+        "statusCode": 200,
+        "headers": {
+            "Content-Type": "application/json"
+        },
+        "body": json.dumps({
+            "data ": f"Query Processed: *{query}*. Check slack for response!"
+        })
+    }
+    return response
+
 def handle_slack_command_lamda(event, context):
-    query = event.get("text")
+    print(f"JSON EVENT RECEIVED: {json.dumps(event)}")
+    query = ""
+    if "body" in event:
+        isBase64 = False
+        if "isBase64Encoded" in event:
+            isBase64 = event.get("isBase64Encoded")
+        request_body = event.get("body")
+        if isBase64:
+            content_type = event.get("headers").get("Content-Type")
+            decoded_body = base64.b64decode(request_body)
+            form_data = decoder.MultipartDecoder(decoded_body, content_type)
+            part = form_data.parts[0]
+            query = part.text
+        else:
+            content_type = event.get("headers").get("Content-Type")
+            if "urlencoded" in content_type:
+                parsed_request = parse_qs(request_body)
+                query = parsed_request.get("text")[0]
+            else:
+                json_body = json.loads(request_body)
+                query = json_body.get("text")
+    else:
+        query = event.get("text")
+    
     if query is None or len(query) == 0:
         print("No query provided!")
         response = {
@@ -57,14 +109,20 @@ def handle_slack_command_lamda(event, context):
             })
         }
         return response
-    handle_slack(query)
+    
+    message = {"text": query}
+    sns_response = sns_client.publish(
+            TopicArn=MY_SNS_TOPIC_ARN,
+            Message=json.dumps({'default': json.dumps(message)}),
+            MessageStructure='json'
+        )
     response = {
         "statusCode": 200,
         "headers": {
             "Content-Type": "application/json"
         },
         "body": json.dumps({
-            "data ": f"Query Processed: *{query}*. Check slack for response!"
+            "data ": f"Request queued for: *{query}*. Check slack for response in 60 seconds!"
         })
     }
     return response

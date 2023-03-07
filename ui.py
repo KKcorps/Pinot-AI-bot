@@ -3,7 +3,8 @@ import logging
 import streamlit as st
 import streamlit.components.v1 as components
 import time
-
+from dotenv import load_dotenv
+load_dotenv(override=True)
 # Configure logger
 logging.basicConfig(format="\n%(asctime)s\n%(message)s", level=logging.INFO, force=True)
 

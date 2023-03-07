@@ -5,6 +5,8 @@ async-timeout==4.0.2
 attrs==22.2.0
 beautifulsoup4==4.11.2
 blinker==1.5
+boto3==1.26.84
+botocore==1.29.84
 cachetools==5.3.0
 certifi==2022.12.7
 charset-normalizer==3.0.1
@@ -19,6 +21,7 @@ idna==3.4
 importlib-metadata==6.0.0
 itsdangerous==2.1.2
 Jinja2==3.1.2
+jmespath==1.0.1
 joblib==1.2.0
 jsonschema==4.17.3
 Markdown==3.4.1
@@ -40,11 +43,14 @@ Pygments==2.14.0
 Pympler==1.0.1
 pyrsistent==0.19.3
 python-dateutil==2.8.2
+python-dotenv==1.0.0
 pytz==2022.7.1
 pytz-deprecation-shim==0.1.0.post0
 regex==2022.10.31
 requests==2.28.2
+requests-toolbelt==0.10.1
 rich==13.3.2
+s3transfer==0.6.0
 semver==2.13.0
 six==1.16.0
 slack-sdk==3.20.0
@@ -60,7 +66,7 @@ tzdata==2022.7
 tzlocal==4.2
 urllib3==1.26.14
 validators==0.20.0
+waitress==2.1.2
 Werkzeug==2.2.3
 yarl==1.8.2
 zipp==3.15.0
-waitress==2.1.2
