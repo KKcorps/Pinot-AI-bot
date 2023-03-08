@@ -1,7 +1,7 @@
 import openai
 import os
 from dotenv import load_dotenv
-
+import re 
 import tiktoken
 
 load_dotenv(override=True)
@@ -10,17 +10,13 @@ openai.api_key = os.environ["OPEN_AI_KEY"]
 MAX_DOC_LENGTH = 2048
 CHUNK_LENGTH = 2048
 CHUNK_OVERLAP_LENGTH = 128
-RESPONSE_TOKEN_MAX = 2048
 CHUNK_SUMMARY_LENGTH = 512
+CONSOLIDATED_SUMMARY_LENGTH = 3100
+RESPONSE_TOKEN_MAX = 512
 MODEL_ENGINE = "gpt-3.5-turbo"
 MODEL_TEMPERATURE = 0.2
 FREQUENCY_PENALTY = 1.0
 PRESENCE_PENALTY = 1.0
-
-
-config_prompt = "A Configuration is any text that starts with ``` and ends with ```. If there is a word after ``` that is generally considered as format. e.g. ```json  {   'enableSnapshot' : true } is a config in json format with keys as `enableSnapshot` and value as `true`. If a config is present, add it to the response in the format `Configuration`: followed by a configuration example."
-
-#TODO: Implement a summarise function that can be used after multiple calls
 
 encoding = tiktoken.encoding_for_model(MODEL_ENGINE)
 
@@ -42,8 +38,8 @@ def break_up_text_to_chunks(text, chunk_size=CHUNK_LENGTH, overlap=CHUNK_OVERLAP
 
 
 def generate_summary(chunk_text, user_question):
-    prompt = f"Assume you are an Apache Pinot Expert. Summarise the following documentation to extract useful information to answer user questions {user_question}. Priority should be given to configuration mentioned in the documentation. {config_prompt}. Also give priority to information that can help in answering: {user_question}.  Documentation: {encoding.decode(chunk_text)}"
-    messages = [{"role": "system", "content": "This is Apache Pinot documentation summarization. DO NOT MAKE ANY CHANGES TO CONFIGURATION MENTIONED IN THE DOCUMENTATION. YOU CAN ONLY TRIM IT BUT NOT CHANGE KEYS AND VALUES. YOU ARE ALSO NOT ALLOWED TO MERGE MULTIPLE CONFIGURATIONS"}]    
+    prompt = f"Assume you are an Apache Pinot Expert. Summarise the following documentation to extract useful information to answer user questions {user_question}. Give priority to information that can help in answering: {user_question}.  Documentation: {encoding.decode(chunk_text)}"
+    messages = [{"role": "system", "content": "This is Apache Pinot documentation summarization."}]    
     messages.append({"role": "user", "content": prompt})
 
     response = openai.ChatCompletion.create(
@@ -59,19 +55,19 @@ def generate_summary(chunk_text, user_question):
 
 
 def consolidate_summaries(summary_list, user_question):
-    #TODO: Handle edge case where summary itself breches token limits
-    prompt = f"Assume you are an Apache Pinot expert. Consolidate these documentation summaries into a single big summary to answer user questions {user_question}. Give priority to configurations mentioned in the documentation. {config_prompt}. Also give priority to information that can help in answering: {user_question}. Documenation: {str(summary_list)}"
+    prompt = f"Assume you are an Apache Pinot expert. Consolidate these documentation summaries mentioned under `Documentation` into a single big summary. Give priority to information that can help in answering: {user_question}."
 
-    messages = [{"role": "system", "content": "This is Apache Pinot documentation summarization. DO NOT MAKE ANY CHANGES TO CONFIGURATION MENTIONED IN THE DOCUMENTATION. YOU CAN ONLY TRIM IT BUT NOT CHANGE KEYS AND VALUES. YOU ARE ALSO NOT ALLOWED TO MERGE MULTIPLE CONFIGURATIONS"}]  
+    messages = [{"role": "system", "content": "This is Apache Pinot documentation summarization."}]  
 
-    prompt = prompt[:3100]
     messages.append({"role": "user", "content": prompt})
+    #TODO: This 3000 word limit is a hack
+    messages.append({"role": "user", "content": f"Documentation: {str(summary_list)[:3000]}"})
 
     response = openai.ChatCompletion.create(
             model=MODEL_ENGINE,
             messages=messages,
             temperature=MODEL_TEMPERATURE,
-            max_tokens=3100,
+            max_tokens=CONSOLIDATED_SUMMARY_LENGTH,
             frequency_penalty=FREQUENCY_PENALTY,
             presence_penalty=PRESENCE_PENALTY
         )
@@ -79,23 +75,33 @@ def consolidate_summaries(summary_list, user_question):
     
 
 def ask_gpt_using_summaries(document_text, user_question):
-    prompt = f"Assume you are an Apache Pinot expert. Can you help find the relevant information and configuration from the documentation to answer this user question? \n\n User question: {user_question}.  The response should be of the format \n\n `Answer:` followed by user answer \n\n `Configuration`: followed by a configuration example. \n\n\n. Use configuration similar to the one in the documentation. \n\n DO NOT MAKE ANY CHANGES TO CONFIGURATION MENTIONED IN THE DOCUMENTATION. YOU CAN ONLY TRIM IT BUT NOT CHANGE KEYS AND VALUES. YOU ARE ALSO NOT ALLOWED TO MERGE MULTIPLE CONFIGURATIONS. {config_prompt} \n\n The summarised documentation to answer these questions is presentation in next few chat messages"
 
-    chunks = break_up_text_to_chunks(document_text)
+    text_without_code_blocks = remove_config_blocks(document_text)
+    chunks = break_up_text_to_chunks(text_without_code_blocks)
     summary_list = []
     for chunk in chunks:
         summary = generate_summary(chunk, user_question)
         summary_list.append(summary)
     
-    print("SUMMARY LIST")
-    print(summary_list)
     summarised_doc = consolidate_summaries(summary_list, user_question)
+   
+    messages = []
+    message1 = {"role": "user", "content": """
+Assume you are an assistant with knowledge about Apache Pinot. Answer any questions about Pinot with the following format -
+     \n\n Answer: [answer to the question asked by user]
+    \n\n Configuration (Optional): [add the configuration here].
+    \n\n User will provide you additional documentation with under heading Documentation: [user documentation here]
+    \n\n User will provie you all the configurations mentioned in the documentation under heading Doc_Configuration: [configuration mentioned in docs here]"""}
 
-    print("CONSOLIDATED SUMMARY")
-    print(summarised_doc)
+    message2 = {"role": "user", "content": f"Documentation: {summarised_doc[:2048]}"}
+    message3 = {"role": "user", "content": f"Doc_Configuration: {str(extract_code_blocks_with_prefix(document_text))[:1024]}"}
+    message4 = {"role": "user", "content": f"{user_question}"}
 
-    messages = [{"role": "user", "content": prompt}]
-    messages.append({"role": "user", "content": f"Documentation: {summarised_doc}"})
+
+    messages.append(message1)
+    messages.append(message2)
+    messages.append(message3)
+    messages.append(message4)
 
     completions= openai.ChatCompletion.create(
         model=MODEL_ENGINE,
@@ -109,42 +115,46 @@ def ask_gpt_using_summaries(document_text, user_question):
     return completions.choices[0]['message']['content'].strip()
 
 
-def ask_gpt(documents, user_question):
-    # prompt = f"Can you help me find the relevant information and code samples in this documentation to answer this user question? \n\n User question: {user_question}\n\nDocuments:\n\n{documents[:MAX_DOC_LENGTH]}\n\nAnswer:"
-    prompt_with_code = f"Can you help me find the relevant information, code samples as well as from the documentation to answer this user question? \n\n User question: {user_question}.  The response should be of the format \n\n `Answer:` followed by user answer \n\n `Configuration`: followed by JSON or YAML configuration example \n\n `Code Sample`: followed by the code sample in JAVA langauge \n\n\n. Use configuration similar to the one in the documentation, also in same format. \n\n The documentation to answer these questions is presentation in next few chat messages"
+def extract_code_blocks_with_prefix(markdown_text):
+    # Define a regular expression to match code blocks
+    code_regex = re.compile(r"```(?:\w+)?\n([\s\S]*?)\n```")
 
-    prompt_without_code = f"Assume you are an Apache Pinot expert. Can you help find the relevant information and configuration from the documentation to answer this user question? \n\n User question: {user_question}.  The response should be of the format \n\n `Answer:` followed by user answer \n\n `Configuration`: followed by a configuration example. \n\n\n. Use configuration similar to the one in the documentation. Do not change the config format. \n\n The documentation to answer these questions is presentation in next few chat messages"
+    # Find all matches of code blocks in the text
+    matches = code_regex.finditer(markdown_text)
 
-    prompt = prompt_without_code
+    # Extract the code blocks along with their start indices
+    code_blocks = [(match.start(), match.group(1)) for match in matches]
 
-    num_chunk = 0
-    messages = [{"role": "user", "content": prompt}]
-    while (num_chunk * CHUNK_LENGTH < len(documents)):
-        start_index = num_chunk * CHUNK_LENGTH
-        end_index = (num_chunk + 1) * CHUNK_LENGTH
-
-        if (start_index > 4096 - len(prompt)): 
-            break
-
-        if (end_index > 4096 - len(prompt)): 
-            end_index = 4096 - len(prompt)
+    formatted_code_blocks = []
+    for block in code_blocks:
+        start_index = block[0]
+        block_text = markdown_text[:start_index].strip()
+        text_end = block_text.rfind(".")
+        text_size = len(block_text[text_end + 1:])
+        # 20 is a hack ignore
+        if text_size <= 20 and text_end != -1: 
+            text_end = block_text.rfind(".", 0, text_end-1)
         
+        block_text_last_line = ""
+        if text_end != -1:
+            block_text_last_line = block_text[text_end + 1:]
         
-        if (len(documents) < end_index):
-            end_index = len(documents)
-        
-        messages.append({"role": "user", "content": f"Documentation Part {num_chunk}: {documents[start_index:end_index]}"})
-        print(f"Added Chunk: {num_chunk}")
-        num_chunk += 1
+        formatted_block = f"{block_text_last_line}\n ```{block[1]}```"
+        formatted_code_blocks.append(formatted_block)
 
-    completions= openai.ChatCompletion.create(
-        model=MODEL_ENGINE,
-        messages=messages,
-        temperature=MODEL_TEMPERATURE,
-        max_tokens=RESPONSE_TOKEN_MAX,
-        frequency_penalty=FREQUENCY_PENALTY,
-        presence_penalty=PRESENCE_PENALTY
-        )
+    return formatted_code_blocks
 
-    natural_language_answer = completions.choices[0]['message']['content'].strip()
-    return natural_language_answer
+def remove_config_blocks(markdown_text):
+    # Use regex to remove all configuration blocks
+    new_markdown_text = re.sub(r'```(.*?)```', '', markdown_text, flags=re.DOTALL)
+    return new_markdown_text
+
+if __name__ == "__main__":
+    from utils.github_helper import get_doc_content
+    doc_url = "https://raw.githubusercontent.com/pinot-contrib/pinot-docs/5e95cbc3771f28bb124e09c4eaba028725168dda/basics/data-import/upsert.md"
+    document_text = get_doc_content(doc_url)
+
+    # print(document_text)
+    question = "How to enable upsert?"
+    answer = ask_gpt(document_text, question)
+    print(f"Question: {question} \n\n {answer}")

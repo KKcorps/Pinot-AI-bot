@@ -4,12 +4,12 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # Set the GitBook API endpoint and access token
-org_id = "apache_pinot"
+org_id = "foo"
 endpoint = "https://api.gitbook.com/v1/orgs/" + org_id + "/search"
-access_token = os.environ["GITBOOK_API_KEY"]
+access_token = os.environ.get('GITBOOK_API_KEY', 'default_value')
 # Define the search query and workspace
 query = "upsert"
-workspace = "apache-pinot"
+workspace = "bar"
 
 # Set the search parameters
 params = {

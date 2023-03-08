@@ -8,33 +8,29 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # Replace these values with your own
-query = "upsert"
-documention_repo = "pinot-contrib/pinot-docs"
-code_repo = "apache/pinot"
+DOCUMENTATION_REPOSITORY = "pinot-contrib/pinot-docs"
+CODE_REPOSITORY = "apache/pinot"
+MAX_URL_COUNT = 1
+GITHUB_SEARCH_API = "https://api.github.com/search/code"
 
 token = os.environ["GITHUB_API_KEY"]
 
 headers = {"Authorization": f"Bearer {token}"}
-MAX_URL_COUNT = 1
 
 ## return block of text from the doc: str
 def get_doc_content(file_url):
     response = requests.get(file_url)
     markdown_content = response.text
-    # Convert the Markdown content to HTML
-    # html_content = markdown(markdown_content)
-    # text_content = ''.join(BeautifulSoup(html_content).findAll(text=True))
     cleaner_text_content = re.sub(r'\n+', '\n', markdown_content) 
-    # print("CLEAN TEXT: " + cleaner_text_content.strip()[:100])
     return cleaner_text_content.strip()
 
 
-## return list of urls:  ['https://file1.md']
+## return list of urls:  ['https://file1.json']
 def search_configs_in_repo(query_items):
     doc_url_list = set()
     file_url_list = set()
     for query in query_items:
-        url = f"https://api.github.com/search/code?q={query}+repo:{code_repo}+extension:json+extension:yaml+extension:properties"
+        url = f"{GITHUB_SEARCH_API}?q={query}+repo:{CODE_REPOSITORY}+extension:json+extension:yaml+extension:properties"
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             results = response.json()["items"]
@@ -42,8 +38,6 @@ def search_configs_in_repo(query_items):
                 filename = result["name"]
                 file_url = result["url"]
                 html_url = result["html_url"]
-                if not html_url.endswith(".md"):
-                    continue
                 if file_url in file_url_list:
                     continue
                 file_url_list.add(file_url)
@@ -52,7 +46,7 @@ def search_configs_in_repo(query_items):
                     download_url = file_url_response.json()["download_url"]
                     if download_url not in doc_url_list:
                         print(f"{filename}: {download_url}")
-                        doc_url_list.add(download_url)
+                        doc_url_list.add((download_url, file_url, html_url))
                         if len(doc_url_list) > MAX_URL_COUNT:
                             break
                 else:
@@ -62,14 +56,14 @@ def search_configs_in_repo(query_items):
             print(f"Error searching GitHub: {response.status_code}")
     return list(doc_url_list)
 
-## return list of urls:  ['https://file1.md']
+## return list of tuples containing (raw_markdown_file_url, github_file_url, html_file_url)
 def search_github_documentation(query_items):
     doc_url_list = set()
     file_url_list = set()
     for query in query_items:
         if len(doc_url_list) >= MAX_URL_COUNT:
             break
-        url = f"https://api.github.com/search/code?q={query}+repo:{documention_repo}"
+        url = f"{GITHUB_SEARCH_API}?q={query}+repo:{DOCUMENTATION_REPOSITORY}"
         response = requests.get(url, headers=headers)
         if response.status_code == 200:
             results = response.json()["items"]
@@ -79,15 +73,18 @@ def search_github_documentation(query_items):
                 html_url = result["html_url"]
                 if not html_url.endswith(".md"):
                     continue
+                if "/releases/" in html_url:
+                    continue
                 if file_url in file_url_list:
                     continue
                 file_url_list.add(file_url)
                 file_url_response = requests.get(file_url)
                 if file_url_response.status_code == 200:
                     download_url = file_url_response.json()["download_url"]
-                    if download_url not in doc_url_list:
-                        print(f"{filename}: {download_url}")
-                        doc_url_list.add(download_url)
+                    url_tuple = (download_url, file_url, html_url)
+                    if url_tuple not in doc_url_list:
+                        print(f"{filename}: {url_tuple}")
+                        doc_url_list.add(url_tuple)
                         if len(doc_url_list) >= MAX_URL_COUNT:
                             break
                 else:

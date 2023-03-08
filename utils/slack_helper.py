@@ -4,7 +4,7 @@ from slack_sdk.errors import SlackApiError
 from dotenv import load_dotenv
 load_dotenv(override=True)
 
-token = os.environ["SLACK_API_KEY"]
+token = os.environ.get('SLACK_API_KEY', 'default_value')
 # Initialize a Slack API client with a user token
 client = WebClient(token=token)
 
