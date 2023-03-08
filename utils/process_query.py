@@ -4,7 +4,7 @@ import string
 import argparse
 
 from utils.github_helper import search_github_documentation, get_doc_content
-from utils.openai_helper import ask_gpt
+from utils.openai_helper import ask_gpt, ask_gpt_using_summaries
 
 import sys
 from dotenv import load_dotenv
@@ -45,7 +45,8 @@ def generate_response(query):
         return "Sorry couldn't find anything! Give it another try with a modified question!"
     for url in documentation_urls:
         doc_text = get_doc_content(url)
-        ai_output = ask_gpt(doc_text, query)
+        # ai_output = ask_gpt(doc_text, query)
+        ai_output = ask_gpt_using_summaries(doc_text, query)
         print(f"Here's what Pinot AI bot thinks you should do:\n {ai_output}")
         print("Hope, you're satisfied trin trin")
         return ai_output
