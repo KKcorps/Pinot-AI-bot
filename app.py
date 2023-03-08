@@ -23,7 +23,11 @@ SNS_TOPIC_REGION = os.environ.get("SNS_TOPIC_REGION", "foo_bar")
 APP_PORT = int(os.environ.get("APP_PORT", "8080"))
 
 headers = {'Content-type': 'application/json'}
+is_sns_client_init = False
 sns_client = None
+if "SNS_TOPIC_REGION" in os.environ:
+    sns_client = boto3.client('sns', region_name=SNS_TOPIC_REGION)
+    is_sns_client_init = True
 
 def format_slack_text(text):
     text = re.sub(r'\n+', '\n', text) 
@@ -33,9 +37,12 @@ def format_slack_text(text):
 def append_question(text, query):
     return f"*{query}* {text}"
 
-def handle_slack(query):
+def get_response(query):
     answer = generate_response(query)
-    slack_response = {"text": append_question(format_slack_text(answer), query)}
+    return append_question(format_slack_text(answer), query)
+
+def handle_slack(query):
+    slack_response = {"text": get_response(query)}
     requests.post(WEBHOOK_URL, json=slack_response, headers=headers)
 
 
@@ -53,8 +60,11 @@ def ask_ai_command():
         requests.post(WEBHOOK_URL, json=slack_response, headers=headers)
         return Response("No query provied"), 400
     #TODO: do not create a new thread for every request obviously   
-    Thread(target = handle_slack, args=[query]).start()
-    return Response(f"Queued: *{query}*. We now let AI cook!"), 200
+    if "SLACK_WEBHOOK_URL" in os.environ:
+        Thread(target = handle_slack, args=[query]).start()
+        return Response(f"Queued: *{query}*. We now let AI cook!"), 200
+    else:
+        return Response(f"{get_response(query)}"), 200
 
 
 def handle_sns_command_lamda(event, context):
@@ -115,13 +125,12 @@ def handle_slack_command_lamda(event, context):
     ## SNS is required because the API calls generally timeout when using via SLACK bot
     ## So you return the response immediately and let the second handle_sns_command_lamda 
     ## do all the processing after receiving the message from SNS topic
-    if sns_client is None:
-        sns_client = boto3.client('sns', region_name=SNS_TOPIC_REGION)
-    sns_response = sns_client.publish(
-            TopicArn=MY_SNS_TOPIC_ARN,
-            Message=json.dumps({'default': json.dumps(message)}),
-            MessageStructure='json'
-        )
+    if is_sns_client_init:
+        sns_response = sns_client.publish(
+                TopicArn=MY_SNS_TOPIC_ARN,
+                Message=json.dumps({'default': json.dumps(message)}),
+                MessageStructure='json'
+            )
     
     response = {
         "statusCode": 200,
