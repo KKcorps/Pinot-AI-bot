@@ -5,6 +5,7 @@ import streamlit.components.v1 as components
 import time
 from dotenv import load_dotenv
 load_dotenv(override=True)
+
 # Configure logger
 logging.basicConfig(format="\n%(asctime)s\n%(message)s", level=logging.INFO, force=True)
 
@@ -19,7 +20,7 @@ def generate_text():
         st.session_state.text_error = "Have you considered typing something?"
         return
 
-    if st.session_state.n_requests >= 5:
+    if st.session_state.n_requests >= 10:
         st.session_state.text_error = "Too many requests. Please wait a few seconds before generating another Tweet."
         logging.info(f"Session request limit reached: {st.session_state.n_requests}")
         st.session_state.n_requests = 1

@@ -10,20 +10,20 @@ import json
 import base64
 from requests_toolbelt.multipart import decoder
 from urllib.parse import parse_qs
-# from keep_alive import keep_alive
 import boto3
 from dotenv import load_dotenv
+load_dotenv(override=True)
 
-load_dotenv(override=True) 
 
 app = Flask(__name__)
 
-WEBHOOK_URL = os.environ["SLACK_WEBHOOK_URL"]
-MY_SNS_TOPIC_ARN = os.environ["SNS_TOPIC_NAME"]
-SNS_TOPIC_REGION = os.environ["SNS_TOPIC_REGION"]
+WEBHOOK_URL = os.environ.get("SLACK_WEBHOOK_URL", "foo_bar")
+MY_SNS_TOPIC_ARN = os.environ.get("SNS_TOPIC_NAME", "foo_bar")
+SNS_TOPIC_REGION = os.environ.get("SNS_TOPIC_REGION", "foo_bar")
+APP_PORT = int(os.environ.get("APP_PORT", "8080"))
 
 headers = {'Content-type': 'application/json'}
-sns_client = boto3.client('sns', region_name=SNS_TOPIC_REGION)
+sns_client = None
 
 def format_slack_text(text):
     text = re.sub(r'\n+', '\n', text) 
@@ -111,11 +111,18 @@ def handle_slack_command_lamda(event, context):
         return response
     
     message = {"text": query}
+
+    ## SNS is required because the API calls generally timeout when using via SLACK bot
+    ## So you return the response immediately and let the second handle_sns_command_lamda 
+    ## do all the processing after receiving the message from SNS topic
+    if sns_client is None:
+        sns_client = boto3.client('sns', region_name=SNS_TOPIC_REGION)
     sns_response = sns_client.publish(
             TopicArn=MY_SNS_TOPIC_ARN,
             Message=json.dumps({'default': json.dumps(message)}),
             MessageStructure='json'
         )
+    
     response = {
         "statusCode": 200,
         "headers": {
@@ -130,11 +137,11 @@ def handle_slack_command_lamda(event, context):
 
 
 def run():
-  app.run(host='0.0.0.0',port=8080)
+  app.run(host='0.0.0.0',port=APP_PORT)
 
 def serve():
     from waitress import serve
-    serve(app, host="0.0.0.0", port=8080)
+    serve(app, host="0.0.0.0", port=APP_PORT)
 
 def keep_alive():
     t = Thread(target=run)
