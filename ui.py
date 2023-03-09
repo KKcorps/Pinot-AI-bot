@@ -9,6 +9,10 @@ load_dotenv(override=True)
 # Configure logger
 logging.basicConfig(format="\n%(asctime)s\n%(message)s", level=logging.INFO, force=True)
 
+import nltk
+nltk.download("stopwords")
+nltk.download("punkt")
+nltk.download("averaged_perceptron_tagger")
 
 # Define functions
 def generate_text():
