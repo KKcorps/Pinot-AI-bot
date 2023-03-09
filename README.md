@@ -15,6 +15,7 @@ PinotAIBot is a Python-based chatbot that uses the Natural Language Toolkit (NLT
 Before running the program, you need to add the following environment variables:
 
 * `GITHUB_API_KEY`: Your personal access token to access the GitHub API. You can generate a new token by following the instructions [here](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token).
+* `GITHUB_REPO_LIST`: Name of github repos seperated by `:`. The repo name should in the form `org/repo` e.g. `apache/pinot:apache/helix`
 * `OPEN_AI_KEY`: Your API key for OpenAI. You can generate a new key by signing up [here](https://beta.openai.com/signup/).
 * `SLACK_WEBHOOK_URL` (Optional): The URL of your Slack webhook. You can create a new webhook by following the instructions [here](https://api.slack.com/messaging/webhooks).
 * `SNS_TOPIC_NAME` (Optional): The name of the SNS topic to use for sending notifications (only required when deploying on AWS Lambda).

@@ -39,7 +39,7 @@ def generate_response(query):
     search_terms = get_search_terms(query)
     documentation_urls = search_github_documentation([query])
     if len(documentation_urls) == 0:
-        documentation_urls = search_github_documentation([','.join(search_terms)])
+        documentation_urls = search_github_documentation(['+'.join(search_terms)])
     
     if len(documentation_urls) == 0:
         print("Sorry couldn't find anything! Give it another try with a modified question!")
