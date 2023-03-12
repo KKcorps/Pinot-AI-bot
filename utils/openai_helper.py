@@ -18,7 +18,23 @@ MODEL_TEMPERATURE = 0.2
 FREQUENCY_PENALTY = 1.0
 PRESENCE_PENALTY = 1.0
 
+EMBEDDINGS_MODEL_ENGINE = "text-embedding-ada-002"
+MAX_EMBEDDING_TOKENS = 8191
+
 encoding = tiktoken.encoding_for_model(MODEL_ENGINE)
+
+def generate_embeddings(
+    batch_doc_text: list[str],
+):
+    # batch_doc_text = []
+    # for batch in batches:
+    #     batch_doc_text.append(" ".join([x.text for x in batch]))
+
+    # assert not any([num_tokens_from_string(x) >= MAX_EMBEDDING_TOKENS for x in batch_doc_text])
+    res = openai.Embedding.create(input=batch_doc_text, engine=EMBEDDINGS_MODEL_ENGINE)
+    return [record["embedding"] for record in res["data"]]
+
+
 
 def count_tokens(text):
     input_ids = encoding.encode(text)

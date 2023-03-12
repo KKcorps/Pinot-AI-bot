@@ -5,6 +5,7 @@ import argparse
 
 from utils.github_helper import search_github_documentation, get_doc_content
 from utils.openai_helper import ask_gpt_using_summaries
+from utils.pinecone_helper import query_index
 
 import re
 import sys
@@ -36,9 +37,11 @@ def get_search_terms(query):
 def generate_response(query):
     print(f"Question Asked by the user: {query}")
 
-    search_terms = get_search_terms(query)
-    documentation_urls = search_github_documentation([query])
+    documentation_urls = query_index(query)
+    
+    # documentation_urls = search_github_documentation([query])
     if len(documentation_urls) == 0:
+        search_terms = get_search_terms(query)
         documentation_urls = search_github_documentation(['+'.join(search_terms)])
     
     if len(documentation_urls) == 0:
@@ -48,7 +51,7 @@ def generate_response(query):
         doc_text = get_doc_content(url[0])
         # ai_output = ask_gpt(doc_text, query)
         ai_output = ask_gpt_using_summaries(doc_text, query)
-        formatted_output = f"{format_text(ai_output)} \n\n For more you can checkout the following documentation: {str(url[2])}"
+        formatted_output = f"{format_text(ai_output)} \n\n For more you can checkout the following documentation: {str(url[1])}"
         print(f"Here's what Pinot AI bot thinks you should do:\n {formatted_output}")
         return formatted_output
 

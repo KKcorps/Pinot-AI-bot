@@ -35,6 +35,12 @@ docker build -t pinot-ai-chat .
 docker run --entrypoint streamlit -p 8501:8501 pinot-ai-chat run ui.py 
 ```
 
+## Index docs into Pinecone
+
+```bash
+python -m utils.embeddings -d /path/to/local/pinot-docs --download_url_prefix https://raw.githubusercontent.com/pinot-contrib/pinot-docs/latest/ --website_url_prefix https://docs.pinot.apache.org/ --max_docs 1 --start_id 1
+```
+
 ## Examples
 
 ![Upsert Image](./img/upsert.png)

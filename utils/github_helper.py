@@ -51,7 +51,7 @@ def search_github_documentation(query_items):
                     file_url_response = requests.get(file_url, headers=headers)
                     if file_url_response.status_code == 200:
                         download_url = file_url_response.json()["download_url"]
-                        url_tuple = (download_url, file_url, html_url)
+                        url_tuple = (download_url, html_url)
                         if url_tuple not in doc_url_list:
                             print(f"{filename}: {url_tuple}")
                             doc_url_list.add(url_tuple)
