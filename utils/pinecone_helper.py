@@ -24,10 +24,16 @@ def query_index(query):
     embedding_res = generate_embeddings([query])
 
     query_embedding = embedding_res[0]
-    res = get_pinecone_index().query(query_embedding, top_k=2, include_metadata=True)
-    metadata = res["matches"][0]["metadata"]
-    metadata_list = [json.loads(metadata[ids]) for ids in metadata]
+    res = get_pinecone_index().query(query_embedding, top_k=3, include_metadata=True)
+    nested_metadata_list =  [match["metadata"] for match in res["matches"]]
+    metadata_list = []
+    for metadata in nested_metadata_list:
+        for ids in metadata:
+            metadata_list.append(json.loads(metadata[ids]))
+
+    # print(f"METADATA LIST: {metadata_list}")
     documentation_urls = [(x["download_url"], x["html_url"]) for x in metadata_list]
+    # print(f"DOCS: {documentation_urls}")
     return documentation_urls
     ## Hack to get relevant prose from metadata
     # Each embedding has multiple chapters so for now pick the first one

@@ -46,6 +46,10 @@ def get_search_terms(query):
 
     return list(set(filtered_tokens))
 
+def format_response(output, url):
+    formatted_output = f"\n{format_text(output)} \n\nFor more you can checkout the following documentation: {str(url)}"
+    print(f"Here's what Pinot AI bot thinks you should do:\n {formatted_output[:100]}...{len(formatted_output) - 100} more characters")
+    return formatted_output    
 
 def generate_response(query):
     print(f"Question Asked by the user: {query}")
@@ -60,14 +64,27 @@ def generate_response(query):
     if len(documentation_urls) == 0:
         print("Sorry couldn't find anything! Give it another try with a modified question!")
         return "Sorry couldn't find anything! Give it another try with a modified question!"
+    
+    content_list = []
     for url in documentation_urls:
-        print(f"Using documentation: {url[1]} for query: {query}")
-        doc_text = get_doc_content(url[0])
-        # ai_output = ask_gpt(doc_text, query)
-        ai_output = ask_gpt_using_summaries(doc_text, query)
-        formatted_output = f"\n{format_text(ai_output)} \n\nFor more you can checkout the following documentation: {str(url[1])}"
-        print(f"Here's what Pinot AI bot thinks you should do:\n {formatted_output[:100]}...{len(formatted_output) - 100} more characters")
-        return formatted_output
+        print(f"Fetching content for: {url[1]}")
+        content_list.append(get_doc_content(url[0]))
+
+    #TODO: Maybe I can index the count of code blocks in pinecone metadata itself??
+    for doc in content_list:
+        doc_text = doc[0]
+        code_blocks_len = doc[1]
+        #This is a hack to give priority to docs containing configuration examples
+        if (code_blocks_len == 0):
+            continue
+        else:
+            print(f"Asking AI using doc: {doc[2]} with {code_blocks_len} code blocks")
+            (ai_output, code_blocks) = ask_gpt_using_summaries(doc_text, query)
+            return format_response(ai_output, doc[2])
+    
+    print(f"Asking AI using doc: {content_list[0][2]} with {content_list[0][2]} code blocks")
+    (ai_output, code_blocks) = ask_gpt_using_summaries(content_list[0][0], query)
+    return format_response(ai_output, content_list[0][2])
 
 if __name__ == "__main__":
     # nltk.download('punkt')

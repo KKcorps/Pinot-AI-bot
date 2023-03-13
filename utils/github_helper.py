@@ -16,12 +16,25 @@ token = os.environ["GITHUB_API_KEY"]
 
 headers = {"Authorization": f"Bearer {token}"}
 
+def count_code_blocks(markdown_text):
+    # Define a regular expression to match code blocks
+    code_regex = re.compile(r"```(?:\w+)?\n([\s\S]*?)\n```")
+
+    # Find all matches of code blocks in the text
+    matches = code_regex.finditer(markdown_text)
+
+    # Extract the code blocks along with their start indices
+    code_blocks = [(match.start(), match.group(1)) for match in matches]
+
+    return len(code_blocks)
+
 ## return block of text from the doc: str
 def get_doc_content(file_url):
     response = requests.get(file_url, headers=headers)
     markdown_content = response.text
     cleaner_text_content = re.sub(r'\n+', '\n', markdown_content) 
-    return cleaner_text_content.strip()
+    content = cleaner_text_content.strip()
+    return (content, count_code_blocks(content), file_url)
 
 
 ## return list of tuples containing (raw_markdown_file_url, github_file_url, html_file_url)

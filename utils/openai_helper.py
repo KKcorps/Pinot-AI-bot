@@ -100,17 +100,18 @@ def ask_gpt_using_summaries(document_text, user_question):
         summary_list.append(summary)
     
     summarised_doc = consolidate_summaries(summary_list, user_question)
-   
+    code_blocks = extract_code_blocks_with_prefix(document_text)
+
     messages = []
     message1 = {"role": "user", "content": """
 Assume you are an assistant with knowledge about Apache Pinot. Answer any questions about Pinot with the following format -
      \n\n Answer: [answer to the question asked by user]
     \n\n Configuration (Optional): [add the configuration here].
-    \n\n User will provide you additional documentation with under heading Documentation: [user documentation here]
-    \n\n User will provie you all the configurations mentioned in the documentation under heading Doc_Configuration: [configuration mentioned in docs here]"""}
+    \n\n User will provide you additional documentation with under heading\nDocumentation: [user documentation here]
+    \n\n User will provide you all the configurations mentioned in the documentation under heading\nDoc_Configuration: [configuration mentioned in docs here]"""}
 
     message2 = {"role": "user", "content": f"Documentation: {summarised_doc[:2048]}"}
-    message3 = {"role": "user", "content": f"Doc_Configuration: {str(extract_code_blocks_with_prefix(document_text))[:1024]}"}
+    message3 = {"role": "user", "content": f"Doc_Configuration: {(code_blocks)[:1024]}"}
     message4 = {"role": "user", "content": f"{user_question}"}
 
 
@@ -128,7 +129,15 @@ Assume you are an assistant with knowledge about Apache Pinot. Answer any questi
         presence_penalty=PRESENCE_PENALTY
         )
 
-    return completions.choices[0]['message']['content'].strip()
+    response = completions.choices[0]['message']['content'].strip()
+
+    # Safeguard to remove any configurations made out of thin air by AI
+    if len(code_blocks) == 0:
+        response = remove_config_blocks(response)
+
+    return (response, code_blocks)
+
+
 
 
 def extract_code_blocks_with_prefix(markdown_text):
