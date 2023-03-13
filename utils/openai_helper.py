@@ -172,5 +172,5 @@ if __name__ == "__main__":
 
     # print(document_text)
     question = "How to enable upsert?"
-    answer = ask_gpt(document_text, question)
+    answer = ask_gpt_using_summaries(document_text, question)
     print(f"Question: {question} \n\n {answer}")

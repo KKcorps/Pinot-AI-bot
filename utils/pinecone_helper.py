@@ -25,11 +25,8 @@ def query_index(query):
 
     query_embedding = embedding_res[0]
     res = get_pinecone_index().query(query_embedding, top_k=2, include_metadata=True)
-
-    print(res)
     metadata = res["matches"][0]["metadata"]
     metadata_list = [json.loads(metadata[ids]) for ids in metadata]
-    print(metadata_list)
     documentation_urls = [(x["download_url"], x["html_url"]) for x in metadata_list]
     return documentation_urls
     ## Hack to get relevant prose from metadata

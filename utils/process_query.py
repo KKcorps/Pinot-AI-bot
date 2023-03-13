@@ -14,7 +14,20 @@ load_dotenv(override=True)
 
 def format_text(text):
     text = re.sub(r'\n+', '\n', text)
-    return text
+    # Define a regular expression pattern to match lines starting with "Documentation:" and containing hyperlinks
+    pattern = r"^Documentation:.*https?://\S+.*$"
+    # Use re.sub() to replace lines matching the pattern with an empty string
+    new_text = re.sub(pattern, "", text, flags=re.MULTILINE)
+
+    pattern = r"For more information.*https?://\S+.*$"
+    # Use re.sub() to replace lines matching the pattern with an empty string
+    new_text = re.sub(pattern, "", new_text, flags=re.MULTILINE)
+
+    pattern = r"refer to.*https?://\S+.*$"
+    # Use re.sub() to replace lines matching the pattern with an empty string
+    new_text = re.sub(pattern, "", new_text, flags=re.MULTILINE)
+
+    return new_text
 
 ## return list of search terms : list[str]
 def get_search_terms(query):
@@ -48,11 +61,12 @@ def generate_response(query):
         print("Sorry couldn't find anything! Give it another try with a modified question!")
         return "Sorry couldn't find anything! Give it another try with a modified question!"
     for url in documentation_urls:
+        print(f"Using documentation: {url[1]} for query: {query}")
         doc_text = get_doc_content(url[0])
         # ai_output = ask_gpt(doc_text, query)
         ai_output = ask_gpt_using_summaries(doc_text, query)
-        formatted_output = f"{format_text(ai_output)} \n\n For more you can checkout the following documentation: {str(url[1])}"
-        print(f"Here's what Pinot AI bot thinks you should do:\n {formatted_output}")
+        formatted_output = f"\n{format_text(ai_output)} \n\nFor more you can checkout the following documentation: {str(url[1])}"
+        print(f"Here's what Pinot AI bot thinks you should do:\n {formatted_output[:100]}...{len(formatted_output) - 100} more characters")
         return formatted_output
 
 if __name__ == "__main__":
